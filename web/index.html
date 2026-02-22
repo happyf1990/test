@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>风控违约概率评估</title>
+    <style>
+      body { font-family: Arial, sans-serif; background:#f5f7fb; margin:0; padding:24px; }
+      .card { max-width:760px; margin:0 auto; background:#fff; border-radius:12px; padding:24px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
+      h1 { margin-top:0; font-size:24px; }
+      .grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; }
+      label { display:block; font-size:14px; color:#333; margin-bottom:6px; }
+      input, select { width:100%; padding:10px; border:1px solid #d7dbe7; border-radius:8px; font-size:14px; }
+      .full { grid-column:1 / -1; }
+      button { margin-top:16px; background:#2b63ff; color:#fff; border:none; border-radius:8px; padding:10px 16px; cursor:pointer; }
+      button:hover { background:#1749d6; }
+      .result { margin-top:20px; padding:14px; border-radius:8px; background:#f0f5ff; }
+      .muted { color:#5f6470; font-size:13px; }
+      @media (max-width: 680px) { .grid { grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>风控违约概率评估</h1>
+      <p class="muted">输入申请人信息，点击“立即评估”查看风险评分、违约概率和风险等级。</p>
+
+      <form id="risk-form" class="grid">
+        <div>
+          <label for="age">年龄</label>
+          <input id="age" type="number" min="18" max="90" value="31" required />
+        </div>
+        <div>
+          <label for="monthly_income">月收入（元）</label>
+          <input id="monthly_income" type="number" min="0" value="18000" required />
+        </div>
+        <div>
+          <label for="debt_ratio">负债率（0~1）</label>
+          <input id="debt_ratio" type="number" min="0" max="1" step="0.01" value="0.42" required />
+        </div>
+        <div>
+          <label for="credit_history_months">信贷历史（月）</label>
+          <input id="credit_history_months" type="number" min="0" value="48" required />
+        </div>
+        <div>
+          <label for="overdue_count_12m">近12个月逾期次数</label>
+          <input id="overdue_count_12m" type="number" min="0" value="1" required />
+        </div>
+        <div>
+          <label for="fraud_flag">反欺诈标签</label>
+          <select id="fraud_flag">
+            <option value="false" selected>未命中</option>
+            <option value="true">命中</option>
+          </select>
+        </div>
+        <div class="full">
+          <button type="submit">立即评估</button>
+        </div>
+      </form>
+
+      <div id="result" class="result" aria-live="polite">
+        <strong>结果：</strong>等待输入。
+      </div>
+    </div>
+
+    <script>
+      function scoreToPd(score) {
+        const x = (600 - score) / 60;
+        return 1 / (1 + Math.exp(-x));
+      }
+
+      function level(score) {
+        if (score >= 760) return 'A';
+        if (score >= 690) return 'B';
+        if (score >= 620) return 'C';
+        if (score >= 540) return 'D';
+        return 'E';
+      }
+
+      function evaluate(profile) {
+        let score = 600;
+        const reasons = [];
+
+        if (profile.age < 22) { score -= 80; reasons.push('年龄过低，稳定性较弱'); }
+        else if (profile.age <= 30) score += 10;
+        else if (profile.age <= 45) score += 25;
+        else if (profile.age <= 60) score += 5;
+        else { score -= 20; reasons.push('年龄偏高，长期偿付能力有不确定性'); }
+
+        if (profile.monthly_income < 5000) { score -= 60; reasons.push('收入偏低'); }
+        else if (profile.monthly_income < 12000) score -= 10;
+        else if (profile.monthly_income < 30000) score += 20;
+        else score += 35;
+
+        if (profile.debt_ratio > 0.7) { score -= 120; reasons.push('负债率过高'); }
+        else if (profile.debt_ratio > 0.5) { score -= 65; reasons.push('负债率较高'); }
+        else if (profile.debt_ratio > 0.35) score -= 20;
+        else score += 20;
+
+        if (profile.credit_history_months < 6) { score -= 70; reasons.push('信贷历史过短'); }
+        else if (profile.credit_history_months < 24) score -= 15;
+        else if (profile.credit_history_months < 60) score += 15;
+        else score += 30;
+
+        if (profile.overdue_count_12m >= 3) { score -= 130; reasons.push('近12个月逾期次数较多'); }
+        else if (profile.overdue_count_12m === 2) { score -= 70; reasons.push('近12个月存在多次逾期'); }
+        else if (profile.overdue_count_12m === 1) { score -= 30; reasons.push('近12个月存在逾期'); }
+        else score += 20;
+
+        if (profile.fraud_flag) { score -= 250; reasons.push('命中反欺诈风险'); }
+        else score += 10;
+
+        score = Math.max(300, Math.min(900, score));
+        if (reasons.length === 0) reasons.push('画像表现稳健');
+
+        return {
+          score,
+          probability_of_default: scoreToPd(score).toFixed(4),
+          level: level(score),
+          reasons,
+        };
+      }
+
+      document.getElementById('risk-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const profile = {
+          age: Number(document.getElementById('age').value),
+          monthly_income: Number(document.getElementById('monthly_income').value),
+          debt_ratio: Number(document.getElementById('debt_ratio').value),
+          credit_history_months: Number(document.getElementById('credit_history_months').value),
+          overdue_count_12m: Number(document.getElementById('overdue_count_12m').value),
+          fraud_flag: document.getElementById('fraud_flag').value === 'true',
+        };
+
+        const result = evaluate(profile);
+        document.getElementById('result').innerHTML = `
+          <strong>评分：</strong>${result.score} / 900<br />
+          <strong>违约概率（PD）：</strong>${result.probability_of_default}<br />
+          <strong>风险等级：</strong>${result.level}<br />
+          <strong>风险原因：</strong>${result.reasons.join('；')}
+        `;
+      });
+    </script>
+  </body>
+</html>
