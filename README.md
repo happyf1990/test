@@ -19,16 +19,25 @@
 
 ## 目录结构
 
-- `src/risk_model.py`：核心模型实现
-- `src/main.py`：演示脚本
+- `src/risk_model.py`：核心模型实现（Python）
+- `src/main.py`：命令行演示脚本
+- `web/index.html`：前端评估页面（浏览器中输入信息并实时返回违约概率）
 - `tests/test_risk_model.py`：单元测试
 - `data/sample_applicants.json`：样例输入数据
 
-## 运行示例
+## 运行示例（Python）
 
 ```bash
 python3 src/main.py
 ```
+
+## 启动前端页面
+
+```bash
+python3 -m http.server 8000
+```
+
+然后浏览器访问：`http://localhost:8000/web/`
 
 ## 运行测试
 
