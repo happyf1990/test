@@ -1,0 +1,26 @@
+[
+  {
+    "age": 25,
+    "monthly_income": 9000,
+    "debt_ratio": 0.33,
+    "credit_history_months": 20,
+    "overdue_count_12m": 0,
+    "fraud_flag": false
+  },
+  {
+    "age": 42,
+    "monthly_income": 28000,
+    "debt_ratio": 0.29,
+    "credit_history_months": 95,
+    "overdue_count_12m": 0,
+    "fraud_flag": false
+  },
+  {
+    "age": 21,
+    "monthly_income": 4500,
+    "debt_ratio": 0.75,
+    "credit_history_months": 4,
+    "overdue_count_12m": 3,
+    "fraud_flag": true
+  }
+]
